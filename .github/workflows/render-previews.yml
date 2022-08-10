@@ -1,0 +1,53 @@
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.kicad_pcb"
+
+name: Render Previews
+jobs:
+  make-pngs:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name: [paroxysm_left, paroxysm_right]
+    name: "Export as PNGs"
+    steps:
+      # CHECKOUT
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # PREVIEWS
+      - name: Make preview of ${{ matrix.name }}
+        uses: ./.github/actions/export-pngs
+        with:
+          pcb_file: '"./${{ matrix.name }}.kicad_pcb"'
+          pngs_dir: '"./images/${{ matrix.name }}"'
+
+      # UPLOAD ARTIFACTS
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: images/${{ matrix.name }}
+
+  publish:
+    needs: make-pngs
+    runs-on: ubuntu-latest
+    steps:
+      # CHECKOUT
+      - name: Checkout
+        uses: actions/checkout@v3
+      # DOWNLOAD ARTIFACTS
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: images/
+      # UPDATE GALLERY
+      - name: Update gallery
+        uses: stefanzweifel/git-auto-commit-action@v4.14.1
+        with:
+          commit_message: "Update gallery (automated)"
+          commit_user_name: GitHub Actions Bot
